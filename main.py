@@ -9,14 +9,6 @@ USD_RATE = 0.053
 JPY_RATE = -0.0009
 TIME = 365
 
-# Mapping variable
-unit_to_days = {
-    "D": 1,
-    "W": 7,
-    "M": 30,  # Approximate days in a month
-    "Y": 365,  # Approximate days in a year
-}
-
 
 def read_excel(file_path='bbg.xlsx'):
     """
@@ -31,6 +23,14 @@ def read_excel(file_path='bbg.xlsx'):
     30Y  11.5 11.5   15.10  14.44  12.48   10950
 
     """
+
+    # Mapping variable
+    unit_to_days = {
+        "D": 1,
+        "W": 7,
+        "M": 30,  # Approximate days in a month
+        "Y": 365,  # Approximate days in a year
+    }
 
     df = pd.read_excel(file_path, header=None, skiprows=3)
     columns_of_interest = [0, 1, 3, 5, 7, 9]
@@ -90,18 +90,19 @@ def plot_delta_vol(df, start=0, stop=30*365, save=False):
     surf = ax.plot_surface(xi, yi, zi, cmap="viridis")
 
     ax.set_xlabel('Delta')
-    ax.set_ylabel('TTM (days)')
+    ax.set_ylabel('Time to maturity (days)')
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(y_legend)
 
     ax.set_zlabel('Volatility (in %)')
     ax.set_xticks(x_axis)
     ax.set_xticklabels(x_legend)
-
+    ax.scatter(xi, yi, zi, marker="o", color="black", label="Data points")
     fig.colorbar(surf, shrink=0.8, pad=0.07)
     plt.title("USDJPY Delta Volatility Surface, August 10th 2023",
               fontweight="bold")
     ax.view_init(elev=25, azim=-45)  # Change these angles as per your need
+    plt.legend()
 
     if save:
         plt.savefig("USDJPY Delta Volatility Surface.png", dpi=300)
@@ -110,5 +111,4 @@ def plot_delta_vol(df, start=0, stop=30*365, save=False):
 
 
 df = read_excel(file_path="bbgnoadj.xlsx")
-print(df)
-plot_delta_vol(df, start=7, save=True)
+plot_delta_vol(df, start=31)
