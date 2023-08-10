@@ -2,8 +2,7 @@ import pricing_functions as pf
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-
+from scipy.interpolate import griddata
 
 SPOT = 144.45
 USD_RATE = 0.053
@@ -30,58 +29,86 @@ def read_excel(file_path='bbg.xlsx'):
     1W  11.5 11.5    15.10  10.45   9.55    7
                         ...
     30Y  11.5 11.5   15.10  14.44  12.48   10950
+
     """
 
     df = pd.read_excel(file_path, header=None, skiprows=3)
     columns_of_interest = [0, 1, 3, 5, 7, 9]
     df = df.iloc[:, columns_of_interest]
     # Renaming columns
-    df.columns = ["TTM", "ATM", "25D Call USD",
-                  "25D Put USD", "10D Call USD", "10D Put USD"]
+    df.columns = ["TTM", "ATM", "25DCall",
+                  "25DPut", "10DCall", "10DPut"]
     df["TTM(days)"] = df["TTM"].apply(lambda x: int(
         x[:-1]) * unit_to_days[x[-1]])  # Mapped to days
     return df
 
 
-def plot(df, start, stop):
+def plot_delta_vol(df, start=0, stop=30*365, save=False):
+    """
+    Plots the delta volatility surface
 
-    # Define the start and end indices for the desired maturities (1W to 30Y)
-    start_idx = np.searchsorted(maturities, 14/365)
-    end_idx = np.searchsorted(maturities, 10)
 
-    # Select the relevant maturities and implied volatilities (reversed)
-    maturities = maturities[end_idx-1:start_idx-1:-1]
-    implied_volatilities = implied_volatilities[end_idx-1:start_idx-1:-1]
+    format of df:
 
-    # Create meshgrid
-    TTM, K = np.meshgrid(maturities, strike_prices)
+    TTM ATM 25DCall 25DPut  10DCall 25DPut TTM(days)
+    1D  11.1 10.1    14.52  11.81   9.65    1
+    1W  11.5 11.5    15.10  10.45   9.55    7
+                        ...
+    30Y  11.5 11.5   15.10  14.44  12.48   10950
 
-    # Define the custom y-tick labels
-    y_ticks_labels = ["10D P", "25D P", "ATM", "25D C", "10D C"]
-    fig = plt.figure(figsize=(12, 8))  # Increase the figure size
+
+    Conversion to an x-axis as below:
+
+    ATM     => .50
+    25DCall => .75
+    10DCall => .90
+    25DPut  => .25
+    10DPut  => .10
+
+    """
+
+    x_axis = [0.1, 0.25, 0.5, 0.75, 0.9]
+    x_legend = ["10DP", "25DP", "ATM", "25DC", "10DC"]
+    y_ticks = [365, 5*365, 10*365, 15*365, 25*365]
+    y_legend = ["1Y", "5Y", "10Y", "15Y", "25Y"]
+
+    df = df.loc[(df["TTM(days)"] >= start) & (df["TTM(days)"] <= stop)]
+
+    xi, yi = np.meshgrid(x_axis, df["TTM(days)"])
+
+    # Corresponding volatility values for each x_axis point
+    zi = np.array([df["10DPut"].values,
+                   df["25DPut"].values,
+                   df["ATM"].values,
+                   df["25DCall"].values,
+                   df["10DCall"].values]).T
+
+    fig = plt.figure(figsize=(10, 8))
+
     ax = fig.add_subplot(111, projection='3d')
-    surf = ax.plot_surface(TTM, K, implied_volatilities.T, cmap='viridis')
 
-    # Set custom y-tick labels
-    ax.set_yticks([100, 110, 120, 130, 140])
-    ax.set_yticklabels(y_ticks_labels)
+    surf = ax.plot_surface(xi, yi, zi, cmap="viridis")
 
-    ax.set_xlabel('Time To Maturity (In Years)')
-    ax.set_ylabel('Delta')
-    ax.set_zlabel('Implied Volatility (In %)')
-    ax.set_title('USDJPY Volatility Surface (August 2023)', fontweight="bold")
+    ax.set_xlabel('Delta')
+    ax.set_ylabel('TTM (days)')
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels(y_legend)
 
-    # Set the limits for y-axis in reverse order
-    ax.set_xlim(ax.get_xlim()[::-1])
-    ax.view_init(elev=30, azim=55)  # Change these angles as per your need
+    ax.set_zlabel('Volatility (in %)')
+    ax.set_xticks(x_axis)
+    ax.set_xticklabels(x_legend)
 
-    # Add colorbar
-    fig.colorbar(surf, shrink=0.5, aspect=5)
-    plt.savefig("something.png", dpi=300)
+    fig.colorbar(surf, shrink=0.8, pad=0.07)
+    plt.title("USDJPY Delta Volatility Surface, August 10th 2023",
+              fontweight="bold")
+    ax.view_init(elev=25, azim=-45)  # Change these angles as per your need
+
+    if save:
+        plt.savefig("USDJPY Delta Volatility Surface.png", dpi=300)
+
     plt.show()
-    return 0
 
 
 df = read_excel(file_path="bbgnoadj.xlsx")
-
 print(df)
+plot_delta_vol(df, start=7, save=True)
