@@ -98,7 +98,7 @@ def plot_delta_vol(df, start=0, stop=30*365, save=False):
     plt.show()
 
 
-def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=15*365, save=False):
+def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=30*365, save=False):
     """ 
     input format:
 
@@ -110,9 +110,9 @@ def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=1
 
     output format df:
 
-    Strike  TTM  Vol    Forward
-    111.51  1   10.84   143.23
-    165.15  1   10.57   143.23    
+    Strike  TTM  Vol
+    111.51  1   10.84
+    165.15  1   10.57    
     ...
     50.12   10950   12.65   53.18
 
@@ -122,7 +122,7 @@ def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=1
     df = df.loc[(df["TTM(days)"] >= start) & (df["TTM(days)"] <= stop)]
 
     delta = [0.5, 0.25, -0.25, 0.10, -0.10]
-    opt_sign = [1, 1, -1, 1, -1]
+    w = [1, 1, -1, 1, -1]  # option sign
 
     x, y, z = [], [], []  # Strike, TTM, Implied Vol -> To plot
 
@@ -132,14 +132,44 @@ def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=1
         TTM = row[-1]
         FWD = pf.atm_forward(ttm=TTM, term_rate=term_rate,
                              base_rate=base_rate, spot=spot)
+        print(TTM)
+        for i in range(len(row[:-1])):
+            implied_volatility = row[i]/100
+            strike = pf.get_strike(w=w[i], delta=delta[i], forward=FWD, term_rate=term_rate,
+                                   base_rate=base_rate, ttm=TTM, vol=implied_volatility, minimum_tick=0.01)
+            x.append(strike)
+            y.append(TTM)
+            z.append(implied_volatility)
 
-        for implied_vol in row[:-1]:
-            pf.get_strike()
+    out = pd.DataFrame([x, y, z]).T
+    out.columns = ['Strike', 'TTM', 'Vol']
 
-    return 0
+    if save:
+        out.to_csv("Strike Vol Surface.csv")
+    return out
+
+
+def read_market_surface_file(filename="Strike Vol Surface.csv"):
+    """
+    Loads the market surface 
+    """
+    out = pd.read_csv(filename)
+    out = out[["Strike", "TTM", "Vol"]]
+    return out
+
+
+def plot_market_voaltility_surface(df, start=0, stop=30*365, save=False, interpolation_method="linear"):
+    """
+    ...
+    """
+
+    df = df.loc[(df["TTM(days)"] >= start) & (df["TTM(days)"] <= stop)]
+
+    print("Hello Biatch")
 
 
 # Main()
+
 df = read_excel(file_path="bbgnoadj.xlsx")
-get_market_volatilty_surface(
-    df, term_rate=JPY_RATE, base_rate=USD_RATE, spot=SPOT)
+ms = read_market_surface_file()
+print(ms)
