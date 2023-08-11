@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
+from matplotlib.lines import Line2D
 
 SPOT = 144.45
 USD_RATE = 0.053
@@ -63,8 +64,8 @@ def plot_delta_vol(df, start=0, stop=30*365, save=False):
     10DCall => .90
     25DPut  => .25
     10DPut  => .10
-
     """
+
     x_axis = [0.1, 0.25, 0.5, 0.75, 0.9]
     x_legend = ["10DP", "25DP", "ATM", "25DC", "10DC"]
     y_ticks = [365, 5*365, 10*365, 15*365, 25*365]
@@ -110,9 +111,9 @@ def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=3
 
     output format df:
 
-    Strike  TTM  Vol
-    111.51  1   10.84
-    165.15  1   10.57    
+    Strike  TTM  Vol    Fwd
+    111.51  1   10.84   142.65
+    165.15  1   10.57   142.65
     ...
     50.12   10950   12.65   53.18
 
@@ -124,7 +125,7 @@ def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=3
     delta = [0.5, 0.25, -0.25, 0.10, -0.10]
     w = [1, 1, -1, 1, -1]  # option sign
 
-    x, y, z = [], [], []  # Strike, TTM, Implied Vol -> To plot
+    x, y, z, f = [], [], [], []  # Strike, TTM, Implied Vol -> To plot
 
     df = df.drop(['TTM'], axis=1)
 
@@ -140,12 +141,13 @@ def get_market_volatilty_surface(df, term_rate, base_rate, spot, start=0, stop=3
             x.append(strike)
             y.append(TTM)
             z.append(implied_volatility)
+            f.append(FWD)
 
-    out = pd.DataFrame([x, y, z]).T
-    out.columns = ['Strike', 'TTM', 'Vol']
+    out = pd.DataFrame([x, y, z, f]).T
+    out.columns = ['Strike', 'TTM', 'Vol', 'Fwd']
 
     if save:
-        out.to_csv("Strike Vol Surface.csv")
+        out.to_csv("Strike Vol Surface.csv", index=False)
     return out
 
 
@@ -154,22 +156,98 @@ def read_market_surface_file(filename="Strike Vol Surface.csv"):
     Loads the market surface 
     """
     out = pd.read_csv(filename)
-    out = out[["Strike", "TTM", "Vol"]]
+    out = out[["Strike", "TTM", "Vol", 'Fwd']]
     return out
 
 
-def plot_market_voaltility_surface(df, start=0, stop=30*365, save=False, interpolation_method="linear"):
+def plot_market_voaltility_surface(df, spot, term_rate, base_rate, start=0, stop=30*365, save=False, interpolation_method="linear"):
     """
-    ...
+    plots the thing
     """
 
-    df = df.loc[(df["TTM(days)"] >= start) & (df["TTM(days)"] <= stop)]
+    df = df.loc[(df["TTM"] >= start) & (df["TTM"] <= stop)]
+    x = df["Strike"]
+    y = df["TTM"]
+    z = df["Vol"]
+    f = df["Fwd"]
 
-    print("Hello Biatch")
+    a = int(min(df['TTM']))
+    b = int(max(df['TTM']))
+    y_fwd_rate, x_fwd_rate = [x for x in range(a, b)], []
+
+    for i in range(len(y_fwd_rate)):
+        x_fwd_rate.append(pf.atm_forward(
+            spot=spot, base_rate=base_rate, term_rate=term_rate, ttm=y_fwd_rate[i]))
+
+    # Create a meshgrid for the x and y values to create the surface plot
+    x_range = np.linspace(min(x), max(x), 1000)
+    y_range = np.linspace(min(y), max(y), 1000)
+    x_grid, y_grid = np.meshgrid(x_range, y_range)
+
+    # Interpolate the z values to create the smooth surface
+    z_grid = griddata((x, y), z, (x_grid, y_grid), method=interpolation_method)
+
+    # Create a 3D figure
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot the surface with a colormap (you can choose a different colormap if desired)
+    surface = ax.plot_surface(x_grid, y_grid, z_grid, cmap='cividis',
+                              edgecolors='black', linewidth=0.5, zorder=1)
+
+    # Add a color bar to the plot for the colormap
+    fig.colorbar(surface, ax=ax, label='Volatility')
+
+    # Set axis labels
+    ax.set_xlabel('Strike')
+    ax.set_ylabel('Time to maturity')
+    ax.set_zlabel('Volatility')
+
+    # Add markers on the y-axis for specific time points
+    time_points = [180, 2 * 365, 5 * 365, 10 * 365, 15 * 365]
+    ax.set_yticks(time_points)
+    ax.set_yticklabels(['6M', '2Y', '5Y', '10Y', '15Y'])
+
+    ax.scatter(x, y, z, marker="o", color="black",
+               label="Data points", alpha=1, s=6)
+    # ax.scatter(100, 4366, 0.075, label="Io Funds option",
+    #            marker="+", color="cyan", s=40)
+    # ax.scatter(x_fwd_rate, y_fwd_rate, 0.075, s=2,
+    #            label="Forward Rate", color="red")
+
+    # forward_rate_legend = Line2D(
+    #     [], [], linestyle='-', color='red', label='Forward Rate')
+    # io_fund_legend = Line2D([], [], linestyle='', marker='+',
+    #                         color='cyan', markersize=8, label='Io Funds option')
+    # data_point_legend = Line2D([], [], linestyle='', marker='o',
+    #                            color='black', markersize=4, label='Data Points')
+    # legend_handles = [forward_rate_legend, io_fund_legend, data_point_legend]
+    # ax.legend(handles=legend_handles)
+
+    ax.legend()
+
+    ax.view_init(elev=30, azim=-25)  # Change the elev value as per your need
+
+    # Set plot title
+    plt.title('USDJPY Market Volatility Surface Cubic Interpolation (August 2023)',
+              fontweight='bold')
+
+    # Adjust the elevation angle to tilt the plot
+    if save:
+        plt.savefig(
+            "USDJPY Market Volatility Surface Cubic Interpolation", dpi=300)
+    # Show the plot
+    plt.show()
 
 
 # Main()
 
 df = read_excel(file_path="bbgnoadj.xlsx")
+
+# ms = get_market_volatilty_surface(
+#    df=df, term_rate=JPY_RATE, base_rate=USD_RATE, spot=SPOT, start=0, stop=30*365, save=True)
+
 ms = read_market_surface_file()
-print(ms)
+plot_market_voaltility_surface(
+    ms, start=14, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
