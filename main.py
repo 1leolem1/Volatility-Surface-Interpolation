@@ -8,7 +8,6 @@ from matplotlib.lines import Line2D
 SPOT = 144.45
 USD_RATE = 0.053
 JPY_RATE = -0.0009
-TIME = 365
 
 
 def read_excel(file_path='bbg.xlsx'):
@@ -70,7 +69,6 @@ def plot_delta_vol(df, start=0, stop=30*365, save=False):
     x_legend = ["10DP", "25DP", "ATM", "25DC", "10DC"]
     y_ticks = [365, 5*365, 10*365, 15*365, 25*365]
     y_legend = ["1Y", "5Y", "10Y", "15Y", "25Y"]
-    df = df.loc[(df["TTM(days)"] >= start) & (df["TTM(days)"] <= stop)]
     xi, yi = np.meshgrid(x_axis, df["TTM(days)"])
     # Corresponding volatility values for each x_axis point
     zi = np.array([df["10DPut"].values,
@@ -241,13 +239,80 @@ def plot_market_voaltility_surface(df, spot, term_rate, base_rate, start=0, stop
     plt.show()
 
 
+def ffvi(df, interpolation_time, plot=False):
+    """
+    interpolation_time: in days
+    df 
+
+    format:
+
+    TTM ATM 25DCall 25DPut  10DCall 25DPut TTM(days)
+    1D  11.1 10.1    14.52  11.81   9.65    1
+    1W  11.5 11.5    15.10  10.45   9.55    7
+                        ...
+    30Y  11.5 11.5   15.10  14.44  12.48   10950
+
+
+    returns FFVI interpolation in format:
+
+    FFVI = [ATM, 25DCall, 25DPut, 10DCall, 25DPut]
+
+    """
+
+    df = df.drop(['TTM'], axis=1)
+    try:
+        below = df[df['TTM(days)'] < interpolation_time].iloc[-1]
+        above = df[df['TTM(days)'] > interpolation_time].iloc[0]
+    except:
+        print("Out of bounds, check format")
+        return 0
+
+    interpolated_points = []
+
+    print(above)
+    print(below)
+
+    for i in range(len(below[:-1])):
+
+        ttm_a = above[-1]
+        ttm_b = below[-1]
+
+        a = (ttm_a*(interpolation_time-ttm_b)) / \
+            (interpolation_time*(ttm_a-ttm_b))*(above[i])**2
+        b = (ttm_b*(ttm_a-interpolation_time)) / \
+            (interpolation_time*(ttm_a-ttm_b))*(below[i])**2
+        temp = np.sqrt(a+b)
+
+        interpolated_points.append(temp)
+
+    interpolated_points = (interpolated_points[4], interpolated_points[2],
+                           interpolated_points[0], interpolated_points[1], interpolated_points[3])
+
+    if plot:
+        x = [0.1, 0.25, 0.5, 0.75, 0.90]
+        title = f"Interpolated Volatility smile for option with TTM {round(interpolation_time/365, 2)}yrs"
+        plt.plot(x, interpolated_points,
+                 label="Linear interpolation", color='red', zorder=0)
+        plt.scatter(x, interpolated_points,
+                    label="Interpolated points", color='black', s=50, zorder=2)
+        plt.grid(alpha=0.3, zorder=1)
+        plt.title(title, fontweight="bold")
+        plt.xlabel("Delta")
+        plt.ylabel("Implied Volatility (in %)")
+        plt.legend()
+        plt.show()
+    return interpolated_points
+
+
 # Main()
 
 df = read_excel(file_path="bbgnoadj.xlsx")
 
 # ms = get_market_volatilty_surface(
 #    df=df, term_rate=JPY_RATE, base_rate=USD_RATE, spot=SPOT, start=0, stop=30*365, save=True)
+# ms = read_market_surface_file()
+# plot_market_voaltility_surface(
+#    ms, start=30, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
 
-ms = read_market_surface_file()
-plot_market_voaltility_surface(
-    ms, start=14, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
+interpolated_vol_simle = ffvi(
+    df, interpolation_time=40, plot=True)  # time in days
