@@ -3,7 +3,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata
+from scipy.interpolate import CubicSpline
 from matplotlib.lines import Line2D
+
 
 SPOT = 144.45
 USD_RATE = 0.053
@@ -255,7 +257,7 @@ def ffvi(df, interpolation_time, plot=False):
 
     returns FFVI interpolation in format:
 
-    FFVI = [ATM, 25DCall, 25DPut, 10DCall, 25DPut]
+    FFVI = [10DPut, 25DPut, ATM,  25DCall, 10DCall]
 
     """
 
@@ -288,23 +290,47 @@ def ffvi(df, interpolation_time, plot=False):
     interpolated_points = (interpolated_points[4], interpolated_points[2],
                            interpolated_points[0], interpolated_points[1], interpolated_points[3])
 
+    x_cubic_spline, y_cubic_spline = cubic_spline_interpolation(
+        interpolated_points)
+
     if plot:
         x = [0.1, 0.25, 0.5, 0.75, 0.90]
-        title = f"Interpolated Volatility smile for option with TTM {round(interpolation_time/365, 2)}yrs"
+        delta_ticks = ["10D Put", "25D Put", "ATM", "25D Call", "10D Call"]
+        title = f"FFVI and Cubic Spline Interpolation for Options with TTM {round(interpolation_time/365, 2)}yrs"
         plt.plot(x, interpolated_points,
-                 label="Linear interpolation", color='red', zorder=0)
+                 label="Linear interpolation", color='black', zorder=0, linestyle="--", linewidth="1", alpha=0.7)
+
+        plt.plot(x_cubic_spline, y_cubic_spline, zorder=1,
+                 label="Cubic spline interpolation", color="red", linestyle="-", linewidth="1")
         plt.scatter(x, interpolated_points,
                     label="Interpolated points", color='black', s=50, zorder=2)
-        plt.grid(alpha=0.3, zorder=1)
+        plt.grid(alpha=0.3, zorder=2)
         plt.title(title, fontweight="bold")
-        plt.xlabel("Delta")
         plt.ylabel("Implied Volatility (in %)")
+
+        plt.xticks(x, delta_ticks)
+
         plt.legend()
         plt.show()
     return interpolated_points
 
 
+def cubic_spline_interpolation(list, format=[0.1, 0.25, 0.5, 0.75, 0.9]):
+    # Given data points
+    x = format
+    y = list
+
+    # Create a cubic spline interpolation function
+    cs = CubicSpline(x, y)
+
+    # Interpolate new y values
+    # 100 new x values between 0 and 4
+    x_new = np.linspace(min(format), max(format), 1000)
+    y_new = cs(x_new)
+
+    return x_new, y_new
 # Main()
+
 
 df = read_excel(file_path="bbgnoadj.xlsx")
 
@@ -315,4 +341,4 @@ df = read_excel(file_path="bbgnoadj.xlsx")
 #    ms, start=30, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
 
 interpolated_vol_simle = ffvi(
-    df, interpolation_time=40, plot=True)  # time in days
+    df, interpolation_time=4368, plot=True)  # time in days
