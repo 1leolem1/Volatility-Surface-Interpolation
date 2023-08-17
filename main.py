@@ -337,8 +337,7 @@ df = read_excel(file_path="bbgnoadj.xlsx")
 # ms = get_market_volatilty_surface(
 #    df=df, term_rate=JPY_RATE, base_rate=USD_RATE, spot=SPOT, start=0, stop=30*365, save=True)
 # ms = read_market_surface_file()
-# plot_market_voaltility_surface(
-#    ms, start=30, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
+# plot_market_voaltility_surface(ms, start=30, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
 
 interpolated_vol_simle = ffvi(
     df, interpolation_time=4368, plot=True)  # time in days
