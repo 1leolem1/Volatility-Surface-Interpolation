@@ -241,7 +241,7 @@ def plot_market_voaltility_surface(df, spot, term_rate, base_rate, start=0, stop
     plt.show()
 
 
-def ffvi(df, interpolation_time, plot=False):
+def ffvi(df, interpolation_time, plot=False, save=False):
     """
     interpolation_time: in days
     df 
@@ -311,6 +311,8 @@ def ffvi(df, interpolation_time, plot=False):
         plt.xticks(x, delta_ticks)
 
         plt.legend()
+        if save:
+            plt.savefig('Cubic Interpolation VS Linear.png')
         plt.show()
     return interpolated_points
 
@@ -340,4 +342,4 @@ df = read_excel(file_path="bbgnoadj.xlsx")
 # plot_market_voaltility_surface(ms, start=30, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
 
 interpolated_vol_simle = ffvi(
-    df, interpolation_time=4368, plot=True)  # time in days
+    df, interpolation_time=4368, plot=True, save=True)  # time in days
