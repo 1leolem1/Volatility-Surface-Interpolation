@@ -45,7 +45,7 @@ def read_excel(file_path='bbg.xlsx'):
     return df
 
 
-def plot_delta_vol(df, start=0, stop=30*365, save=False):
+def plot_delta_vol(df, start=0, stop=15*365, save=False):
     """
     Plots the delta volatility surface interpolated linearly
 
@@ -66,34 +66,34 @@ def plot_delta_vol(df, start=0, stop=30*365, save=False):
     25DPut  => .25
     10DPut  => .10
     """
-
+    
+    
     x_axis = [0.1, 0.25, 0.5, 0.75, 0.9]
     x_legend = ["10DP", "25DP", "ATM", "25DC", "10DC"]
-    y_ticks = [365, 5*365, 10*365, 15*365, 25*365]
-    y_legend = ["1Y", "5Y", "10Y", "15Y", "25Y"]
+    y_ticks = [365, 2*365, 5*365, 10*365, 15*365]
+    y_legend = ["1Y", "2Y", "5Y", "10Y", "15Y"]
     xi, yi = np.meshgrid(x_axis, df["TTM(days)"])
     # Corresponding volatility values for each x_axis point
-    zi = np.array([df["10DPut"].values,
-                   df["25DPut"].values,
-                   df["ATM"].values,
-                   df["25DCall"].values,
-                   df["10DCall"].values]).T
+    zi = np.array([df["10DPut"].values/100,
+                   df["25DPut"].values/100,
+                   df["ATM"].values/100,
+                   df["25DCall"].values/100,
+                   df["10DCall"].values/100]).T
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
-    surf = ax.plot_surface(xi, yi, zi, cmap="viridis")
+    surf = ax.plot_surface(xi, yi, zi, cmap="cividis")
     ax.set_xlabel('Delta')
-    ax.set_ylabel('Time to maturity (days)')
+    ax.set_ylabel('Time to maturity')
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(y_legend)
-    ax.set_zlabel('Volatility (in %)')
+    ax.set_zlabel('Implied volatility')
     ax.set_xticks(x_axis)
     ax.set_xticklabels(x_legend)
     ax.scatter(xi, yi, zi, marker="o", color="black", label="Data points")
     fig.colorbar(surf, shrink=0.8, pad=0.07)
-    plt.title("USDJPY Delta Volatility Surface, August 10th 2023",
+    plt.title("USDJPY delta volatility surface, August 10th 2023",
               fontweight="bold")
     ax.view_init(elev=25, azim=-45)  # Change these angles as per your need
-    plt.legend()
     if save:
         plt.savefig("USDJPY Delta Volatility Surface.png", dpi=300)
     plt.show()
@@ -197,40 +197,34 @@ def plot_market_voaltility_surface(df, spot, term_rate, base_rate, start=0, stop
                               edgecolors='black', linewidth=0.5, zorder=1)
 
     # Add a color bar to the plot for the colormap
-    fig.colorbar(surface, ax=ax, label='Volatility')
+    fig.colorbar(surface, ax=ax, label='Implied volatility')
 
     # Set axis labels
     ax.set_xlabel('Strike')
     ax.set_ylabel('Time to maturity')
-    ax.set_zlabel('Volatility')
+    ax.set_zlabel('Implied volatility')
 
     # Add markers on the y-axis for specific time points
-    time_points = [180, 2 * 365, 5 * 365, 10 * 365, 15 * 365]
+    time_points = [365, 2 * 365, 5 * 365, 10 * 365, 15 * 365]
     ax.set_yticks(time_points)
-    ax.set_yticklabels(['6M', '2Y', '5Y', '10Y', '15Y'])
-
-    ax.scatter(x, y, z, marker="o", color="black",
-               label="Data points", alpha=1, s=6)
+    ax.set_yticklabels(['1Y', '2Y', '5Y', '10Y', '15Y'])
     # ax.scatter(100, 4366, 0.075, label="Io Funds option",
-    #            marker="+", color="cyan", s=40)
+    #             marker="+", color="cyan", s=40)
     # ax.scatter(x_fwd_rate, y_fwd_rate, 0.075, s=2,
-    #            label="Forward Rate", color="red")
+    #             label="Forward Rate", color="red", zorder=1)
+    ax.scatter(x, y, z, marker="o", color="black", alpha=1, s=6, zorder=2)
 
     # forward_rate_legend = Line2D(
     #     [], [], linestyle='-', color='red', label='Forward Rate')
     # io_fund_legend = Line2D([], [], linestyle='', marker='+',
     #                         color='cyan', markersize=8, label='Io Funds option')
-    # data_point_legend = Line2D([], [], linestyle='', marker='o',
-    #                            color='black', markersize=4, label='Data Points')
-    # legend_handles = [forward_rate_legend, io_fund_legend, data_point_legend]
+    # legend_handles = [forward_rate_legend, io_fund_legend]
     # ax.legend(handles=legend_handles)
 
-    ax.legend()
-
-    ax.view_init(elev=30, azim=-25)  # Change the elev value as per your need
+    ax.view_init(elev=-90, azim=0)  # Change the elev value as per your need
 
     # Set plot title
-    plt.title('USDJPY Market Volatility Surface Cubic Interpolation (August 2023)',
+    plt.title('USDJPY market volatility surface heatmap view, August 10th 2023',
               fontweight='bold')
 
     # Adjust the elevation angle to tilt the plot
@@ -338,8 +332,9 @@ df = read_excel(file_path="bbgnoadj.xlsx")
 
 # ms = get_market_volatilty_surface(
 #    df=df, term_rate=JPY_RATE, base_rate=USD_RATE, spot=SPOT, start=0, stop=30*365, save=True)
-# ms = read_market_surface_file()
-# plot_market_voaltility_surface(ms, start=30, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
+ms = read_market_surface_file()
+plot_market_voaltility_surface(ms, start=1, interpolation_method="cubic", spot=SPOT, base_rate=USD_RATE, term_rate=JPY_RATE, stop=15*365, save=True)
 
-interpolated_vol_simle = ffvi(
-    df, interpolation_time=4368, plot=True, save=True)  # time in days
+
+# interpolated_vol_simle = ffvi(
+#     df, interpolation_time=4368, plot=True, save=True)  # time in days
