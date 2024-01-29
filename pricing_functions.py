@@ -3,6 +3,19 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 
+class price():
+    def __init__(self, quotes_df, rates_f, rates_d):
+        # quotes df should be volatility quotes, rate
+        self.quotes_df = self.treat_data(quotes_df)
+
+        pass
+
+    def treat_data(self, quotes_df):
+        # process quotes data by interpolating it daily using FFVI
+
+        pass
+
+
 def atm_forward(spot, term_rate, base_rate, ttm):
     """
     spot: in dom currency
